@@ -1,8 +1,9 @@
 *
 !LICENSE
 !.gitignore
-!/deckbox/*.c
-!/deckbox/*.h
-!/release/*.c
-!/release/*.h
-!/data_collection/*.py
+!deckbox/
+!release/
+!data_collection/
+!*.c
+!*.h
+!*.py
