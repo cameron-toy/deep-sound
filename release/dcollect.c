@@ -26,6 +26,20 @@ void send_ss_seq(void) {
         send_char(0xFF);
 }
 
+void print_adc(int16_t adc) {
+//    if (adc < 0)
+//        send_char('-');
+//    else
+//        send_char('+');
+    //send_char((adc / 10000) % 10 + 48);
+    send_char((adc / 1000) % 10 + 48);
+    send_char((adc / 100) % 10 + 48);
+    send_char((adc / 10) % 10 + 48);
+    send_char((adc) % 10 + 48);
+    send_char('\r');
+    send_char('\n');
+}
+
 /*
  * Send a single byte via UART. Poll IFG until done.
  */

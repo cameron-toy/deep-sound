@@ -3,10 +3,15 @@
 #include "clock.h"
 #include "dcollect.h"
 #include "fix_fft.h"
+#include "buffer.h"
+#include "lpf.h"
+#include "bpf.h"
 #include <math.h>
+#include <stdio.h>
 
 uint8_t adc_ready = 0;
 uint16_t adc;
+int16_t fout = 0;
 
 #define FFT_SIZE 10
 #define BUFSIZE 1024
@@ -27,6 +32,11 @@ void main(void)
     int16_t samples[BUFSIZE];
     int16_t imag[BUFSIZE];
 
+    buf_t buf = {.size=20, .pos=0};
+    bpf_coeff_t coeffs;
+
+    int16_t out0 = 0, out1 = 0;
+
 	set_DCO(FREQ_12_MHz);
 	setup_adc();
 	set_sample_rate(SAMPLE_RATE_HZ);
@@ -40,8 +50,10 @@ void main(void)
     P1->OUT |= BIT1 | BIT4;
 
     /* Enable external ADC VREF+ and VREF- */
-    P5->SEL0 |= (BIT6 | BIT7);
-    P5->SEL0 |= (BIT6 | BIT7);
+//    P5->SEL0 |= (BIT6 | BIT7);
+//    P5->SEL0 |= (BIT6 | BIT7);
+
+    bpf_find_freq(&coeffs, 1000, 0.9);
 
 	while (1) {
 	    /* Start */
@@ -55,21 +67,30 @@ void main(void)
 	    /* A new ADC value has been read */
 	    if (adc_ready) {
 	        adc_ready = 0;
-	        if (running) {
-	            if (i < BUFSIZE) { /* Still collecting samples */
-	                samples[i] = (int16_t)adc - 8192;
-	                imag[i] = 0;
-	                i++;
-	            }
-	            else { /* all samples collected, perform computation */
-	                running = 0;
-	                i = 0;
-	                fix_fft(samples, imag, FFT_SIZE, 0);
-	                compute_freq_mag(samples, imag);
-	                send_samples(samples);
-	                send_ss_seq();
-	            }
-	        } /* running */
+
+	        bpf_update(&coeffs, adc - 3340, out0, out1);
+	        if (fout < 0)
+	            fout = -fout;
+	        updatebuf(&buf, fout);
+            lpf_update(&buf);
+	        print_adc(fout);
+//	        if (running) {
+//	            if (i < BUFSIZE) { /* Still collecting samples */
+//	                samples[i] = fout;//(int16_t)adc - 8192;
+//	                imag[i] = 0;
+//	                i++;
+//	            }
+//	            else { /* all samples collected, perform computation */
+//	                running = 0;
+//	                i = 0;
+//	                fix_fft(samples, imag, FFT_SIZE, 0);
+//	                compute_freq_mag(samples, imag);
+//	                send_samples(samples);
+//	                send_ss_seq();
+//	            }
+//	        } /* running */
+	        out1 = out0;
+	        out0 = fout;
 	    } /* adc_ready */
 	}
 }
@@ -88,6 +109,7 @@ void compute_freq_mag(int16_t *real, int16_t *imag) {
         freq = sqrt(freq);
         real[i] = freq;
     }
+    //real[0] = 0;
 }
 
 
