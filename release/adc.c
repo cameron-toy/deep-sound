@@ -30,7 +30,7 @@ void setup_adc(void) {
     /* Channel A14 */
     ADC14->MCTL[0] |= ADC14_MCTLN_INCH_14;
     /* Use external VREF+/- */
-    ADC14->MCTL[0] |= ADC14_MCTLN_VRSEL_14;
+//    ADC14->MCTL[0] |= ADC14_MCTLN_VRSEL_14;
 
     /* Pin 6.1 set to tertiary function (datasheet) */
     P6->SEL0 |= BIT1;

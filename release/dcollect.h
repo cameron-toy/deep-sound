@@ -3,6 +3,7 @@
 
 void send_samples(int16_t *samples);
 void dcollect_init(void);
+void print_adc(int16_t adc);
 void send_ss_seq(void);
 void send_char(uint8_t byte);
 void write_str(char *str);

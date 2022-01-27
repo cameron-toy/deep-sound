@@ -1,9 +1,21 @@
 #include "msp.h"
 #include "dac.h"
+#include "settings.h"
 
 #define DAC_CTL 7 /* buffered, 1x gain */
 #define THIRD_NIBBLE 0x0F00
 #define LOW_BYTE 0x00FF
+
+extern uint8_t dac_ready;
+
+/*
+ * Timer interrupt for playing samples at specific rate
+ */
+void TA0_0_IRQHandler(void) {
+    /* Clear interrupt flag, set dac flag */
+    TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
+    dac_ready = 1;
+}
 
 /*
  * Send a 12-bit number to the MCP4921
@@ -46,5 +58,16 @@ void setup_dac(void) {
     EUSCI_B0->CTLW0 &= ~EUSCI_B_CTLW0_SWRST; /* Stop reset */
 }
 
-
+uint16_t set_sample_rate(uint16_t freq) {
+    /* Get the clock frequency in Hz and set CCR value */
+    uint32_t clk = BASE_CLK_FREQ;
+    clk <<= (CS->CTL0 & CS_CTL0_DCORSEL_MASK) >> CS_CTL0_DCORSEL_OFS;
+    TIMER_A0->CCR[0] = (clk / freq);
+    /* Enable interrupts */
+    TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;
+    NVIC->ISER[0] |= 1 << (TA0_0_IRQn & 0x1F);
+    /* Use SMCLK for timer */
+    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK;
+    return 0;
+}
 
