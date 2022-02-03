@@ -9,7 +9,7 @@ typedef struct {
     int16_t pos;
 } buf_t;
 
-int16_t getbuf(buf_t *buf, int16_t idx);
+inline uint32_t getbuf(buf_t *buf, int16_t idx);
 void updatebuf(buf_t *buf, int16_t val);
 
 #endif /* BUFFER_H_ */
