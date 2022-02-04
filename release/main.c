@@ -24,7 +24,7 @@ void main(void)
 	WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;		// stop watchdog timer
 
     uint16_t i = 0;
-    uint8_t running = 0, found;
+    uint8_t collecting = 0, foundf1, foundf2, release;
 
     int16_t samples[BUFSIZE];
     int16_t imag[BUFSIZE];
@@ -32,10 +32,12 @@ void main(void)
     bpf_coeff_t coeffs;
     int16_t fout;
 
-	set_DCO(FREQ_12_MHz);
+	set_DCO(FREQ_24_MHz);
 	setup_adc();
 	set_sample_rate(SAMPLE_RATE_HZ);
+#ifdef DEBUG
 	dcollect_init(); /* For data collection */
+#endif
 	__enable_irq();
 
 	/* Configure onboard buttons for start/stop of data collection */
@@ -46,45 +48,67 @@ void main(void)
 
     /* LED output (for prototype) */
     P2->DIR |= BIT2;
+    P1->DIR |= BIT0;
 
     /* Enable external ADC VREF+ and VREF- */
-//    P5->SEL0 |= (BIT6 | BIT7);
-//    P5->SEL0 |= (BIT6 | BIT7);
+#ifndef VREF_INTERNAL
+    P5->SEL0 |= (BIT6 | BIT7);
+    P5->SEL0 |= (BIT6 | BIT7);
+#endif
 
+#ifdef FILTER_MODE
     bpf_find_freq(&coeffs, 3000, 0.99);
+#endif
+    set_release_timeout(1000);
 
 	while (1) {
 	    /* Start */
+#ifdef DEBUG
         if (!(P1->IN & BIT4)) {
-            if (!running) {
-                running = 1;
+            if (!collecting) {
+                collecting = 1;
                 i = 0;
                 send_ss_seq();
             }
         }
+#endif
 	    /* A new ADC value has been read */
 	    if (adc_ready) {
 	        adc_ready = 0;
 
-	        //fout = update_filters(adc - ADC_MID, &coeffs);
+#ifdef FILTER_MODE
+	        fout = update_filters(adc - ADC_MID, &coeffs);
+#else
 
-	        //if (running) {
+#ifdef DEBUG
+	        if (collecting) {
+#endif
 	            if (i < BUFSIZE) { /* Still collecting samples */
 	                samples[i] = (int16_t)adc - ADC_MID; // lpfout
 	                imag[i] = 0;
 	                i++;
 	            }
 	            else { /* all samples collected, perform computation */
-	                running = 0;
+	                collecting = 0;
 	                i = 0;
 	                fix_fft(samples, imag, FFT_SIZE, 0);
 	                compute_freq_mag(samples, imag);
-	                found = sigdet(samples, 1000);
-	                //send_samples(samples);
-	                //send_ss_seq();
+	                foundf1 = sigdet(samples, FREQL);
+                    foundf2 = sigdet(samples, FREQH);
+                    release = check_state(foundf1, foundf2);
+                    P2->OUT &= ~BIT2;
+                    if (release) {
+                        P2->OUT |= BIT2;
+                    }
+#ifdef DEBUG
+	                send_samples(samples);
+	                send_ss_seq();
+#endif
 	            }
-	        //} /* running */
-
+#ifdef DEBUG
+	        } /* collecting data */
+#endif
+#endif
 	    } /* adc_ready */
 	}
 }
