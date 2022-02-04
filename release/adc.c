@@ -1,8 +1,7 @@
 #include "msp.h"
 #include "adc.h"
+#include "settings.h"
 #include <stdio.h>
-
-#define BASE_CLK_FREQ 1500000
 
 extern uint16_t adc;
 extern uint8_t adc_ready;
@@ -29,8 +28,10 @@ void setup_adc(void) {
     ADC14->CTL1 = ADC14_CTL1_RES__14BIT;
     /* Channel A14 */
     ADC14->MCTL[0] |= ADC14_MCTLN_INCH_14;
+#ifndef VREF_INTERNAL
     /* Use external VREF+/- */
-//    ADC14->MCTL[0] |= ADC14_MCTLN_VRSEL_14;
+    ADC14->MCTL[0] |= ADC14_MCTLN_VRSEL_14;
+#endif
 
     /* Pin 6.1 set to tertiary function (datasheet) */
     P6->SEL0 |= BIT1;

@@ -6,7 +6,59 @@
 #include "sigdet.h"
 #include <math.h>
 
+#define TIMEOUT_CLK_HZ 9400
+#define ONE_SECOND_MS 1000
+
 extern buf_t buf;
+uint8_t timeout = 0;
+
+uint8_t check_state(uint8_t foundf1, uint8_t foundf2) {
+    static state_t state = WAIT_F1;
+    static uint8_t transitions = 0;
+    uint8_t release = 0;
+    /* Listening for the first frequency */
+    if (state == WAIT_F1) {
+        if (foundf1 && !foundf2) {
+            state = WAIT_F2;
+            transitions++;
+            TIMER_A1->R = 0; /* reset timeout */
+            P1->OUT |= BIT0;
+        }
+        else if (!foundf1) {
+            state = WAIT_F1;
+        }
+    }
+    /* Listening for the second frequency */
+    else if (state == WAIT_F2) {
+        if (!foundf1 && foundf2) {
+            state = WAIT_F1;
+            transitions++;
+            TIMER_A1->R = 0; /* reset timeout */
+            P1->OUT &= ~BIT0;
+        }
+        else if (!foundf2) {
+            state = WAIT_F2;
+        }
+    }
+    /* No transitions occurred after some time */
+    if (timeout) {
+        /* Back to initial state, clear all recorded transitions */
+        state = WAIT_F1;
+        transitions = 0;
+        P1->OUT &= ~BIT0;
+        /* Reset timeout */
+        timeout = 0;
+        TIMER_A1->R = 0;
+        TIMER_A1->CTL |= TIMER_A_CTL_MC__UP;
+    }
+    /* Heard the correct number of transitions - release! */
+    if (transitions == TRANSITION_AMOUNT) {
+        release = 1;
+        state = WAIT_F1;
+        transitions = 0;
+    }
+    return release;
+}
 
 /*
  * Calculate the frequency magnitude given an array
@@ -42,13 +94,11 @@ uint8_t sigdet(int16_t *freq, uint16_t target) {
     }
     /* Output - turn on LED for prototype */
     if ((float)signal_energy / (float)total_energy > SIGNAL_NOISE_RATIO_MIN) {
-        P2->OUT |= BIT2; /* Signal is detected */
+        //P2->OUT |= BIT2; /* Signal is detected */
         return 1;
     }
-    else {
-        P2->OUT &= ~BIT2; /* Signal not detected */
-        return 0;
-    }
+    //P2->OUT &= ~BIT2; /* Signal not detected */
+    return 0;
 }
 
 int16_t update_filters(int16_t adc, bpf_coeff_t *coeffs) {
@@ -68,4 +118,24 @@ int16_t update_filters(int16_t adc, bpf_coeff_t *coeffs) {
     }
     out1 = out0;
     out0 = bpfout;
+    return lpfout;
+}
+
+void TA1_0_IRQHandler(void) {
+    /* Clear interrupt flag, start adc sample */
+    TIMER_A1->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
+    TIMER_A1->CTL |= TIMER_A_CTL_MC__STOP;
+    timeout = 1;
+}
+
+uint16_t set_release_timeout(uint16_t timeout_ms) {
+    TIMER_A1->CCR[0] = (TIMEOUT_CLK_HZ * timeout_ms) / ONE_SECOND_MS;
+    /* Enable interrupts */
+    TIMER_A1->CCTL[0] = TIMER_A_CCTLN_CCIE;
+    NVIC->ISER[0] |= 1 << (TA1_0_IRQn & 0x1F);
+    /* Use ACLK for timer (9.4kHz) */
+    TIMER_A1->CTL = TIMER_A_CTL_SSEL__ACLK;
+    /* Start timer in UP mode */
+    TIMER_A1->CTL |= TIMER_A_CTL_MC__UP;
+    return 0;
 }

@@ -12,5 +12,7 @@ void set_DCO(uint32_t freq) {
     CS->CTL1 |= CS_CTL1_SELM__DCOCLK | CS_CTL1_DIVM__1;
     /* SMCLK = DCOCLK */
     CS->CTL1 |= CS_CTL1_SELS__DCOCLK | CS_CTL1_DIVS__1;
+    /* Select VLOCLK as ACLK source */
+    CS->CTL1 |= CS_CTL1_SELA__VLOCLK | CS_CTL1_DIVA__1;
     CS->KEY = 0; /* Lock CS */
 }
