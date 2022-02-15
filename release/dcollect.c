@@ -7,11 +7,15 @@
 
 static void setup_uart(uint32_t baud_rate);
 
+inline void send_sample(uint16_t sample) {
+    send_char(sample & 0xFF);
+    send_char((sample >> 8) & 0xFF);
+}
+
 void send_samples(int16_t *samples) {
     uint16_t i = 0;
     while (i < 1024) {
-        send_char(samples[i] & 0xFF);
-        send_char((samples[i] >> 8) & 0xFF);
+        send_sample((uint16_t)samples[i]);
         i++;
     }
 }

@@ -1,6 +1,7 @@
 #ifndef DCOLLECT_H
 #define DCOLLECT_H
 
+inline void send_sample(uint16_t sample);
 void send_samples(int16_t *samples);
 void dcollect_init(void);
 void print_adc(int16_t adc);
