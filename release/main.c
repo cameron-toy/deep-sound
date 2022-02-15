@@ -77,10 +77,24 @@ void main(void)
             }
         }
 #endif
+#ifdef RECORDING
+        if (!(P1->IN & BIT4)) {
+            if (!recording) {
+                recording = 1;
+                send_ss_seq();
+            }
+        }
+        if (!(P1->IN & BIT1)) {
+            recording = 0;
+            send_ss_seq();
+        }
+#endif
         /* A new ADC value has been read */
         if (adc_ready) {
             adc_ready = 0;
-
+#ifdef RECORDING
+            send_sample(adc);
+#else
 #ifdef FILTER_MODE
             fout = update_filters(adc - ADC_MID, &coeffs);
 #else
@@ -117,6 +131,7 @@ void main(void)
                 }
 #ifdef DEBUG
             } /* collecting data */
+#endif
 #endif
 #endif
         } /* adc_ready */
