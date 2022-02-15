@@ -65,32 +65,46 @@ uint8_t check_state(uint8_t foundf1, uint8_t foundf2) {
  * of both real and imaginary parts. Modify real array
  * in place with the result.
  */
-void compute_freq_mag(int16_t *real, int16_t *imag) {
+void compute_freq_mag(int16_t *real, int16_t *imag, uint16_t *result, uint16_t start, uint16_t end) {
     uint16_t i = 0;
-    double freq;
-    for (i = 0; i < BUFSIZE; i++) {
-        /* TODO (maybe?): Make this more efficient */
-        freq = real[i] * real[i] + imag[i] * imag[i];
-        freq = sqrt(freq);
-        real[i] = freq;
+    uint32_t val;
+//    double freq;
+    uint32_t freq;
+    for (i = start; i < end; i++) {
+        /* Made magnitude calculation faster */
+        val = (real[i] << 16) | imag[i];
+        val = __SMUAD(val, val);
+//        freq = real[i] * real[i] + imag[i] * imag[i];
+//        freq = sqrt(freq);
+        freq = val >> 1;
+        freq = (freq + val / freq) >> 1;
+        freq = (freq + val / freq) >> 1;
+        freq = (freq + val / freq) >> 1;
+        freq = (freq + val / freq) >> 1;
+        freq = (freq + val / freq) >> 1;
+        freq = (freq + val / freq) >> 1;
+        freq = (freq + val / freq) >> 1;
+        freq = (freq + val / freq) >> 1;
+        result[i] = freq;
     }
-    real[0] = 0;
+    result[0] = 0;
 }
 
-uint8_t sigdet(int16_t *freq, uint16_t target) {
+uint8_t sigdet(int16_t *freq, int16_t *imag, uint16_t *mag, uint16_t target) {
     uint32_t total_energy = 0, signal_energy = 0;
     uint16_t i = 0;
     int16_t start;
     start = (target * BUFSIZE / SAMPLE_RATE_HZ) - NOISE_RADIUS;
     if (start <= 0)
         start = 1;
+    compute_freq_mag(freq, imag, mag, start, start + (NOISE_RADIUS << 1));
     /* Determine total energy in wide region around target */
     for (i = start; i < start + (NOISE_RADIUS << 1); i++) {
-        total_energy += freq[i];
+        total_energy += mag[i];
     }
     /* Determine signal energy in narrow region around target */
     for (i = start + (NOISE_RADIUS - SIGNAL_RADIUS); i < start + (NOISE_RADIUS + SIGNAL_RADIUS); i++) {
-        signal_energy += freq[i];
+        signal_energy += mag[i];
     }
     /* Output - turn on LED for prototype */
     if ((float)signal_energy / (float)total_energy > SIGNAL_NOISE_RATIO_MIN) {

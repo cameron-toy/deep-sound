@@ -28,6 +28,7 @@ void main(void)
 
     int16_t samples[BUFSIZE];
     int16_t imag[BUFSIZE];
+    uint16_t mag[BUFSIZE];
 
     bpf_coeff_t coeffs;
     int16_t fout;
@@ -59,9 +60,13 @@ void main(void)
 #ifdef FILTER_MODE
     bpf_find_freq(&coeffs, 3000, 0.99);
 #endif
-    set_release_timeout(1000);
-
+    set_release_timeout(RELEASE_TIMEOUT_MS);
+    //int s = 0;
     while (1) {
+        /* Reset release indicator */
+        if (!(P1->IN & BIT1)) {
+            P2->OUT &= ~BIT2;
+        }
         /* Start */
 #ifdef DEBUG
         if (!(P1->IN & BIT4)) {
@@ -92,16 +97,21 @@ void main(void)
                     collecting = 0;
                     i = 0;
                     fix_fft(samples, imag, FFT_SIZE, 0);
-                    compute_freq_mag(samples, imag);
-                    foundf1 = sigdet(samples, FREQL);
-                    foundf2 = sigdet(samples, FREQH);
+                    compute_freq_mag(samples, imag, mag, 0, BUFSIZE);
+                    foundf1 = sigdet(samples, imag, mag, FREQL);
+                    foundf2 = sigdet(samples, imag, mag, FREQH);
                     release = check_state(foundf1, foundf2);
-                    P2->OUT &= ~BIT2;
+                    //P2->OUT ^= BIT2;
+//                    if (s)
+//                        P2->OUT |= BIT2;//~P2->OUT & BIT2;//BIT2;
+//                    else
+//                        P2->OUT &= ~BIT2;
+//                    s = !s;
                     if (release) {
                         P2->OUT |= BIT2;
                     }
 #ifdef DEBUG
-                    send_samples(samples);
+                    send_samples((int16_t *)mag);
                     send_ss_seq();
 #endif
                 }
