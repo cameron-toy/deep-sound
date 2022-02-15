@@ -2,6 +2,11 @@ from multiprocessing.sharedctypes import Value
 import wave
 import serial
 import sys
+import itertools
+
+def blockwise(t, size=2, fillvalue=None):
+    it = iter(t)
+    return itertools.zip_longest(*[it]*size, fillvalue=fillvalue)
 
 def read_serial(port, baud):
     with serial.Serial(port, baud, timeout=None) as ser:
@@ -13,7 +18,14 @@ def read_serial(port, baud):
         bytes = ser.read_until(b"\xFF" * 8)
         print("stop recieved")
     
-    return bytes
+    shifted_bytes = []
+    for bytepair in blockwise(bytes, 2):
+        value = int.from_bytes(bytepair, "little", signed=False)
+        value <<= 2
+        shifted_bytes.append(int.to_bytes(value, "little", signed=False))
+
+    
+    return b"".join(shifted_bytes)
 
 
 def record(framerate, fname, data):
