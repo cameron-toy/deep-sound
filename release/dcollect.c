@@ -21,7 +21,7 @@ void send_samples(int16_t *samples) {
 }
 
 void dcollect_init(void) {
-    setup_uart(BAUD_RATE);
+    setup_uart(460800/*BAUD_RATE*/);
 }
 
 void send_ss_seq(void) {

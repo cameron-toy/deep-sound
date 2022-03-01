@@ -17,7 +17,7 @@
 
 /* Compilation modes */
 #undef DEBUG
-#undef RECORDING
+#define RECORDING
 #undef FILTER_MODE
 #define FFT_MODE
 #define VREF_INTERNAL

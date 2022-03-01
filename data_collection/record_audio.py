@@ -19,11 +19,18 @@ def read_serial(port, baud):
         print("stop recieved")
     
     shifted_bytes = []
+    samples = 0
     for bytepair in blockwise(bytes, 2):
         value = int.from_bytes(bytepair, "little", signed=False)
         value <<= 2
-        shifted_bytes.append(int.to_bytes(value, "little", signed=False))
+        try:
+            shifted_bytes.append(int.to_bytes(value, 2, byteorder="little", signed=False))
+            samples += 1
+        except Exception as e:
+            print(value)
+            continue
 
+    print("samples:", samples)
     
     return b"".join(shifted_bytes)
 
@@ -32,7 +39,8 @@ def record(framerate, fname, data):
     with wave.open(fname, "w") as f:
         f.setnchannels(1)
         f.setsampwidth(2)
-        f.setframerate(framerate)
+        f.setframerate(int(framerate))
+        print("framerate:", framerate)
         f.writeframes(data)
 
 def main():
