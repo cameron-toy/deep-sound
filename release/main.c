@@ -24,7 +24,7 @@ void main(void)
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;        // stop watchdog timer
 
     uint16_t i = 0;
-    uint8_t collecting = 0, foundf1, foundf2, release;
+    uint8_t collecting = 0, recording = 0, foundf1, foundf2, release;
 
     int16_t samples[BUFSIZE];
     int16_t imag[BUFSIZE];
@@ -36,9 +36,8 @@ void main(void)
     set_DCO(FREQ_24_MHz);
     setup_adc();
     set_sample_rate(SAMPLE_RATE_HZ);
-#ifdef DEBUG
+
     dcollect_init(); /* For data collection */
-#endif
     __enable_irq();
 
     /* Configure onboard buttons for start/stop of data collection */
@@ -85,15 +84,18 @@ void main(void)
             }
         }
         if (!(P1->IN & BIT1)) {
-            recording = 0;
-            send_ss_seq();
+            if (recording) {
+                recording = 0;
+                send_ss_seq();
+            }
         }
 #endif
         /* A new ADC value has been read */
         if (adc_ready) {
             adc_ready = 0;
 #ifdef RECORDING
-            send_sample(adc);
+            send_char(adc & 0xFF);
+            send_char((adc >> 8) & 0xFF);
 #else
 #ifdef FILTER_MODE
             fout = update_filters(adc - ADC_MID, &coeffs);
